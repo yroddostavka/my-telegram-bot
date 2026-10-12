@@ -11,20 +11,14 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
 
-
 # ========== НАСТРОЙКИ ==========
-BOT_TOKEN = os.getenv("8608438205:AAFqqv219U4StniATQKOrS6EeQ9sxYXc-wk")
+BOT_TOKEN = os.getenv("BOT_TOKEN")
 ADMIN_ID = int(os.getenv("ADMIN_ID", 6473159440))
-PAYMENT_PHONE = os.getenv("PAYMENT_PHONE", "+79962133230")
+PAYMENT_PHONE = os.getenv("PAYMENT_PHONE", "+7XXXXXXXXXX")
 # ===============================
-from aiogram.client.session.aiohttp import AiohttpSession
 
 logging.basicConfig(level=logging.INFO)
-
-# Указываем адрес локального SOCKS5-прокси, который создает Tg Ws proxy.
-# По умолчанию у tg-ws-proxy это 127.0.0.1:1080.
-session = AiohttpSession(proxy="socks5://127.0.0.1:1443")
-bot = Bot(token="8608438205:AAFqqv219U4StniATQKOrS6EeQ9sxYXc-wk", session=session)
+bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher(storage=MemoryStorage())
 
 # ========== КАТАЛОГ ТОВАРОВ ==========
@@ -40,7 +34,7 @@ PRODUCTS = {
     "fresh_bar_lichi":   ("Fresh Bar Личи Пичи 0.5л", 63),
     "fresh_bar_citrus":  ("Fresh Bar Citrus Lime 0.5л", 63),
     "piko_lini":         ("ПикоЛини пачка", 52),
-    "piko_libi":         ("ПикоЛини 1 шт", 27),
+    "piko_libi":         ("ПикоЛиби 1 шт", 27),
     "mos_potato_chili":  ("Московский картофель Сладкий чили", 124),
 }
 # =====================================
@@ -73,14 +67,6 @@ def catalog_menu():
     buttons.append([InlineKeyboardButton(text="📦 Корзина", callback_data="cart")])
     buttons.append([InlineKeyboardButton(text="⬅️ Назад", callback_data="back")])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
-
-
-def cart_menu():
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="✅ Оформить заказ", callback_data="checkout")],
-        [InlineKeyboardButton(text="🗑 Очистить", callback_data="clear_cart")],
-        [InlineKeyboardButton(text="⬅️ В каталог", callback_data="catalog")],
-    ])
 
 
 def cart_text_and_kb(uid):
@@ -132,7 +118,8 @@ async def cmd_start(message: Message):
 async def show_catalog(call: CallbackQuery):
     await call.message.edit_text(
         "🛒 <b>Каталог</b>\n\nЖми на товар, чтобы добавить в корзину:",
-        reply_markup=catalog_menu()
+        reply_markup=catalog_menu(),
+        parse_mode="HTML"
     )
     await call.answer()
 
@@ -163,7 +150,7 @@ async def plus_item(call: CallbackQuery):
     carts.setdefault(uid, {})
     carts[uid][pid] = carts[uid].get(pid, 0) + 1
     text, kb = cart_text_and_kb(uid)
-    await call.message.edit_text(text, reply_markup=kb)
+    await call.message.edit_text(text, reply_markup=kb, parse_mode="HTML")
     await call.answer()
 
 
@@ -176,7 +163,7 @@ async def minus_item(call: CallbackQuery):
         if carts[uid][pid] <= 0:
             del carts[uid][pid]
     text, kb = cart_text_and_kb(uid)
-    await call.message.edit_text(text, reply_markup=kb)
+    await call.message.edit_text(text, reply_markup=kb, parse_mode="HTML")
     await call.answer()
 
 
@@ -189,7 +176,7 @@ async def noop(call: CallbackQuery):
 @dp.callback_query(F.data == "cart")
 async def show_cart(call: CallbackQuery):
     text, kb = cart_text_and_kb(call.from_user.id)
-    await call.message.edit_text(text, reply_markup=kb)
+    await call.message.edit_text(text, reply_markup=kb, parse_mode="HTML")
     await call.answer()
 
 
@@ -197,7 +184,7 @@ async def show_cart(call: CallbackQuery):
 async def clear_cart(call: CallbackQuery):
     carts[call.from_user.id] = {}
     text, kb = cart_text_and_kb(call.from_user.id)
-    await call.message.edit_text(text, reply_markup=kb)
+    await call.message.edit_text(text, reply_markup=kb, parse_mode="HTML")
     await call.answer("🗑 Корзина очищена")
 
 
@@ -211,7 +198,8 @@ async def start_checkout(call: CallbackQuery, state: FSMContext):
         "✍️ Напиши своё <b>имя</b> (как к тебе обращаться):",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="❌ Отменить", callback_data="cancel_order")]
-        ])
+        ]),
+        parse_mode="HTML"
     )
     await state.set_state(OrderForm.waiting_name)
     await call.answer()
@@ -224,7 +212,8 @@ async def get_name(message: Message, state: FSMContext):
         "📞 Теперь напиши свой <b>номер телефона</b> или ник в ТГ:",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="❌ Отменить", callback_data="cancel_order")]
-        ])
+        ]),
+        parse_mode="HTML"
     )
     await state.set_state(OrderForm.waiting_phone)
 
@@ -265,14 +254,14 @@ async def get_phone(message: Message, state: FSMContext):
     await bot.send_message(ADMIN_ID, order_text, parse_mode="HTML")
 
     await message.answer(
-    f"✅ Заказ оформлен!\n\n"
-    f"💰 Сумма: <b>{total}₽</b>\n"
-    f"📱 Переведи на номер: <code>{PAYMENT_PHONE}</code>\n"
-    f"💬 В комментарии к переводу укажи своё имя.\n\n"
-    f"После перевода я свяжусь с тобой.",
-    reply_markup=main_menu(),
-    parse_mode="HTML"   # ← добавить эту строку
-)
+        f"✅ Заказ оформлен!\n\n"
+        f"💰 Сумма: <b>{total}₽</b>\n"
+        f"📱 Переведи на номер: <code>{PAYMENT_PHONE}</code>\n"
+        f"💬 В комментарии к переводу укажи своё имя.\n\n"
+        f"После перевода я свяжусь с тобой.",
+        reply_markup=main_menu(),
+        parse_mode="HTML"
+    )
     carts[uid] = {}
 
 
@@ -290,7 +279,7 @@ async def cancel_order(call: CallbackQuery, state: FSMContext):
 # ========== /myid ==========
 @dp.message(Command("myid"))
 async def cmd_myid(message: Message):
-    await message.answer(f"Твой ID: <code>{message.from_user.id}</code>")
+    await message.answer(f"Твой ID: <code>{message.from_user.id}</code>", parse_mode="HTML")
 
 
 # ========== Запуск ==========
@@ -298,6 +287,9 @@ async def main():
     print("Бот запущен...")
     await dp.start_polling(bot)
 
+
+if __name__ == "__main__":
+    asyncio.run(main())
 
 if __name__ == "__main__":
     asyncio.run(main())

@@ -1,3 +1,4 @@
+import os
 import asyncio
 import logging
 from aiogram import Bot, Dispatcher, F
@@ -10,12 +11,12 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
 
-# ========== НАСТРОЙКИ ==========
-BOT_TOKEN = "8608438205:AAFqqv219U4StniATQKOrS6EeQ9sxYXc-wk"
-ADMIN_ID = 6473159440
-PAYMENT_PHONE = "+79962133230"
-# ===============================
 
+# ========== НАСТРОЙКИ ==========
+BOT_TOKEN = os.getenv("8608438205:AAFqqv219U4StniATQKOrS6EeQ9sxYXc-wk")
+ADMIN_ID = int(os.getenv("ADMIN_ID", 6473159440))
+PAYMENT_PHONE = os.getenv("PAYMENT_PHONE", "+79962133230")
+# ===============================
 from aiogram.client.session.aiohttp import AiohttpSession
 
 logging.basicConfig(level=logging.INFO)
